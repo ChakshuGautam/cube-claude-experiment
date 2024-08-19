@@ -1,4 +1,5 @@
-# Rubik's Cube Simulator and Solver | My Tryst with Claude and Cursor
+# Rubik's Cube Simulator and Solver 
+> **Note:** This project was developed as an experiment with Claude AI and Cursor, exploring their capabilities in assisting with code generation and problem-solving for complex applications like a Rubik's Cube simulator.
 
 This project is a React-based Rubik's Cube simulator and solver. It provides a 3D visualization of a Rubik's Cube with interactive controls and solving capabilities.
 
