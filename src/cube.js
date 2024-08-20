@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import Cube from 'cubejs';
 import './App.css';
 
@@ -94,6 +94,68 @@ const RubiksCube = () => {
     const [solverInitialized, setSolverInitialized] = useState(false);
     const [error, setError] = useState(null);
     const moveCountRef = useRef(0);
+    const containerRef = useRef(null);
+    const [offset, setOffset] = useState({ x: 0, y: 0, z: 0 });
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+    const [renderCount, setRenderCount] = useState(0);
+
+    const calculateOffset = useCallback(() => {
+        if (containerSize.width === 0 || containerSize.height === 0) {
+            console.log("Container size is zero, skipping offset calculation");
+            return;
+        }
+
+        const cubeSize = 3 * 55; // Assuming 3x3 cube with 55px pieces
+        const xOffset = (containerSize.width - cubeSize) / 2;
+        const yOffset = (containerSize.height - cubeSize) / 2;
+
+        console.log(`Calculating offset: x=${xOffset}, y=${yOffset}`);
+        setOffset({ x: xOffset, y: yOffset, z: 0 });
+    }, [containerSize]);
+
+    const updateContainerSize = useCallback(() => {
+        if (containerRef.current) {
+            const { width, height } = containerRef.current.getBoundingClientRect();
+            console.log(`Updating container size: ${width}x${height}`);
+            setContainerSize({ width, height });
+        } else {
+            console.log("Container ref is not available");
+        }
+    }, []);
+
+    // Force re-render after initial mount
+    useEffect(() => {
+        console.log("Initial mount effect");
+        const timeoutId = setTimeout(() => {
+            setRenderCount(prev => prev + 1);
+        }, 0);
+
+        return () => clearTimeout(timeoutId);
+    }, []);
+
+    // Effect for updating container size
+    useEffect(() => {
+        console.log(`Render count: ${renderCount}`);
+        updateContainerSize();
+
+        const handleResize = () => {
+            console.log("Window resize detected");
+            updateContainerSize();
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [updateContainerSize, renderCount]);
+
+    // Effect to calculate offset whenever containerSize changes
+    useEffect(() => {
+        console.log("Container size changed, recalculating offset");
+        calculateOffset();
+    }, [containerSize, calculateOffset]);
+
+    // Log on every render
+    console.log("Rendering - Container Size:", containerSize, "Offset:", offset, "Render Count:", renderCount);
+
 
     useEffect(() => {
         const initSolver = async () => {
@@ -137,18 +199,6 @@ const RubiksCube = () => {
         });
     }, [isRotating, cube, applyMove]);
 
-    // const scrambleCube = useCallback(() => {
-    //     if (!solverInitialized) return;
-    //     const newCube = Cube.random();
-    //     const solution = newCube.solve();
-    //     setCube(newCube);
-    //     console.log(`Scrambled cube: ${newCube.asString()}`);
-    //     setCurrentAlgorithm(solution);
-    //     setIsScrambled(true);
-    //     setCurrentStep("Scrambled");
-    //     moveCountRef.current += 1;
-    // }, [solverInitialized]);
-
     const scrambleCube = useCallback(() => {
         if (!solverInitialized) return;
         setCube(prevCube => {
@@ -162,35 +212,6 @@ const RubiksCube = () => {
             return newCube;
         });
     }, [solverInitialized]);
-
-    // const solveCube = useCallback(() => {
-    //     if (!solverInitialized || !isScrambled || isSolving) return;
-    //     setIsSolving(true);
-    //     setCurrentStep("Solving");
-
-    //     const solution = cube.solve();
-    //     setCurrentAlgorithm(solution);
-
-    //     const moves = solution.split(' ');
-    //     let index = 0;
-
-    //     const applyNextMove = async () => {
-    //         if (index < moves.length) {
-    //             const updatedCube = await applyMove(moves[index]);
-    //             setCurrentStep(`Applying move: ${moves[index]}`);
-    //             setCube(updatedCube);  // Ensure the cube state is updated
-    //             setTimeout(applyNextMove, 100);
-    //             index++;
-    //         } else {
-    //             setIsSolving(false);
-    //             setIsScrambled(false);
-    //             setCurrentStep(cube.isSolved() ? "Solved!" : `Solving failed ${cube.asString()}`);
-    //             setCurrentAlgorithm("");
-    //         }
-    //     };
-
-    //     applyNextMove();
-    // }, [solverInitialized, isScrambled, isSolving, cube, applyMove]);
 
     const solveCube = useCallback(() => {
         if (!solverInitialized || !isScrambled || isSolving) return;
@@ -238,9 +259,13 @@ const RubiksCube = () => {
     if (!cube || !solverInitialized) return <div>Loading... {currentStep}</div>;
 
     return (
-        <div className="rubiks-cube-container">
+        <div className="rubiks-cube-container" ref={containerRef} >
             <div className="rubiks-cube" key={moveCountRef.current} style={{
-                transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg)`
+                transform: `
+                translate3d(${offset.x}px, ${offset.y}px, ${offset.z}px) 
+                rotateX(${rotation.x}deg) 
+                rotateY(${rotation.y}deg) 
+                rotateZ(${rotation.z}deg)`
             }}>
                 {getCubeStateCallback().map((piece, index) => (
                     <CubePiece key={index} position={piece.position.map(p => p * 55)} colors={piece.colors} />
