@@ -113,61 +113,114 @@ const RubiksCube = () => {
 
     const getCubeStateCallback = useCallback(() => getCubeState(cube), [cube]);
 
+
     const applyMove = useCallback((move) => {
-        setCube(prevCube => {
-            const newCube = Cube.fromString(prevCube.asString());
-            newCube.move(move);
-            moveCountRef.current += 1;
-            return newCube;
+        return new Promise(resolve => {
+            setCube(prevCube => {
+                const newCube = prevCube.clone();
+                newCube.move(move);
+                moveCountRef.current += 1;
+                console.log(newCube.asString());
+                resolve(newCube);  // Resolve the promise with the new cube
+                return newCube;
+            });
         });
     }, []);
+
 
     const rotateFace = useCallback((face, direction) => {
         if (isRotating || !cube) return;
         setIsRotating(true);
         const move = direction === 'clockwise' ? face : face + "'";
-        applyMove(move);
-        setTimeout(() => setIsRotating(false), 500);
+        applyMove(move, () => {
+            setTimeout(() => setIsRotating(false), 100);
+        });
     }, [isRotating, cube, applyMove]);
+
+    // const scrambleCube = useCallback(() => {
+    //     if (!solverInitialized) return;
+    //     const newCube = Cube.random();
+    //     const solution = newCube.solve();
+    //     setCube(newCube);
+    //     console.log(`Scrambled cube: ${newCube.asString()}`);
+    //     setCurrentAlgorithm(solution);
+    //     setIsScrambled(true);
+    //     setCurrentStep("Scrambled");
+    //     moveCountRef.current += 1;
+    // }, [solverInitialized]);
 
     const scrambleCube = useCallback(() => {
         if (!solverInitialized) return;
-        const newCube = Cube.random();
-        const solution = newCube.solve();
-        setCube(newCube);
-        setCurrentAlgorithm(solution);
-        setIsScrambled(true);
-        setCurrentStep("Scrambled");
-        moveCountRef.current += 1;
+        setCube(prevCube => {
+            const newCube = Cube.random();
+            const solution = newCube.solve();
+            console.log(`Scrambled cube: ${newCube.asString()}`);
+            setCurrentAlgorithm(solution);
+            setIsScrambled(true);
+            setCurrentStep("Scrambled");
+            moveCountRef.current += 1;
+            return newCube;
+        });
     }, [solverInitialized]);
+
+    // const solveCube = useCallback(() => {
+    //     if (!solverInitialized || !isScrambled || isSolving) return;
+    //     setIsSolving(true);
+    //     setCurrentStep("Solving");
+
+    //     const solution = cube.solve();
+    //     setCurrentAlgorithm(solution);
+
+    //     const moves = solution.split(' ');
+    //     let index = 0;
+
+    //     const applyNextMove = async () => {
+    //         if (index < moves.length) {
+    //             const updatedCube = await applyMove(moves[index]);
+    //             setCurrentStep(`Applying move: ${moves[index]}`);
+    //             setCube(updatedCube);  // Ensure the cube state is updated
+    //             setTimeout(applyNextMove, 100);
+    //             index++;
+    //         } else {
+    //             setIsSolving(false);
+    //             setIsScrambled(false);
+    //             setCurrentStep(cube.isSolved() ? "Solved!" : `Solving failed ${cube.asString()}`);
+    //             setCurrentAlgorithm("");
+    //         }
+    //     };
+
+    //     applyNextMove();
+    // }, [solverInitialized, isScrambled, isSolving, cube, applyMove]);
 
     const solveCube = useCallback(() => {
         if (!solverInitialized || !isScrambled || isSolving) return;
         setIsSolving(true);
         setCurrentStep("Solving");
 
-        const solution = cube.solve();
-        setCurrentAlgorithm(solution);
+        setCube(currentCube => {
+            const solution = currentCube.solve();
+            setCurrentAlgorithm(solution);
+            const moves = solution.split(' ');
 
-        const moves = solution.split(' ');
-        let index = 0;
+            const applyNextMove = (index = 0, cubeState = currentCube) => {
+                if (index < moves.length) {
+                    const newCube = cubeState.clone();
+                    newCube.move(moves[index]);
+                    setCurrentStep(`Applying move: ${moves[index]}`);
+                    setCube(newCube);
+                    setTimeout(() => applyNextMove(index + 1, newCube), 100);
+                } else {
+                    setIsSolving(false);
+                    setIsScrambled(false);
+                    setCurrentStep(cubeState.isSolved() ? "Solved!" : `Solving failed ${cubeState.asString()}`);
+                    setCurrentAlgorithm("");
+                }
+            };
 
-        const applyNextMove = () => {
-            if (index < moves.length) {
-                applyMove(moves[index]);
-                setCurrentStep(`Applying move: ${moves[index]}`);
-                setTimeout(applyNextMove, 500);
-                index++;
-            } else {
-                setIsSolving(false);
-                setIsScrambled(false);
-                setCurrentStep(cube.isSolved() ? "Solved!" : `Solving failed ${cube.asString()}`);
-                setCurrentAlgorithm("");
-            }
-        };
-
-        applyNextMove();
-    }, [solverInitialized, isScrambled, isSolving, cube, applyMove]);
+            applyNextMove();
+            return currentCube; // Return the initial cube state
+        });
+    }, [solverInitialized, isScrambled, isSolving, setCube]);
 
     useEffect(() => {
         const handleKeyPress = (event) => {

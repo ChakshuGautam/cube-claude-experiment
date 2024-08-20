@@ -96,3 +96,33 @@ describe('Rubik\'s Cube App', () => {
     expect(screen.getByText(/Current Algorithm: U R F/i)).toBeInTheDocument();
   });
 });
+
+test('end-to-end scramble and solution', async () => {
+  render(<App />);
+
+  await waitFor(() => {
+    expect(screen.queryByText(/Loading.../i)).not.toBeInTheDocument();
+  });
+
+  // Scramble the cube
+  const scrambleButton = screen.getByRole('button', { name: /Scramble/i });
+  await act(async () => {
+    userEvent.click(scrambleButton);
+  });
+
+  expect(screen.getByText(/Current Step: Scrambled/i)).toBeInTheDocument();
+
+  // Solve the cube
+  const solveButton = screen.getByRole('button', { name: /Solve/i });
+  await act(async () => {
+    userEvent.click(solveButton);
+  });
+
+  // Wait for the solution to complete
+  await waitFor(() => {
+    expect(screen.getByText(/Current Step: Solved/i)).toBeInTheDocument();
+  }, { timeout: 10000 });
+
+  // Verify the cube is solved
+  expect(screen.queryByText(/Current Algorithm:/i)).not.toBeInTheDocument();
+});
