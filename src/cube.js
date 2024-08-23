@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Cube from 'cubejs';
 import './App.css';
 
@@ -118,10 +118,17 @@ const RubiksCube = () => {
             const { width, height } = containerRef.current.getBoundingClientRect();
             console.log(`Updating container size: ${width}x${height}`);
             setContainerSize({ width, height });
+    
+            const cubeSize = 3 * 55;
+            const xOffset = (width - cubeSize) / 2;
+            const yOffset = (height - cubeSize) / 2;
+    
+            console.log(`Calculating offset: x=${xOffset}, y=${yOffset}`);
+            setOffset({ x: xOffset, y: yOffset, z: 0 });
         } else {
             console.log("Container ref is not available");
         }
-    }, []);
+    }, [containerRef]);
 
     // Force re-render after initial mount
     useEffect(() => {
